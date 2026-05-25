@@ -1,0 +1,18 @@
+{
+    "name": "kenal/m4api",
+    "description": "APIconnection",
+    "autoload": {
+        "psr-4": {
+            "Kenal\\M4api\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Kenal0",
+            "email": "kenal.karpenko.mikhail@gmail.com"
+        }
+    ],
+    "require": {
+        "guzzlehttp/guzzle": "^7.10"
+    }
+}
