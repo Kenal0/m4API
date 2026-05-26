@@ -17,7 +17,7 @@ class M4ApiClient
         $this->httpClient = new Client(['http_errors' => false]);
     }
 
-    public function login(string $username, string $password): array
+    public function login(string $username, string $password)
     {
         $url = $this->authUrl . '/login_check';
 
@@ -87,12 +87,19 @@ class M4ApiClient
         return $responseData['result'] ?? [];
     }
 
-    public function getTicket(int $days = 3): array
+    public function getTasks(int $days = 3): array
     {
         $dateLimit = (new \DateTime())->modify("-{$days} days")->format('d.m.Y H:i:s');
 
         return $this->sendRpcRequest('M4GetTasks', [
             'lastUpdate' => $dateLimit,
+        ]);
+    }
+
+    public function getTaskDetails($taskId): array
+    {
+        return $this->sendRpcRequest('M4GetTaskDetails', [
+            'taskId' => $taskId,
         ]);
     }
 }
