@@ -24,7 +24,7 @@ class App
             echo 'Успешная авторизация! URL сервиса SD: ' . $sdUrl . PHP_EOL;
             echo 'Запрос списка заявок за последние 3 дня.' . PHP_EOL;
 
-            $tasks = $this->api->getTasks(150);
+            $tasks = $this->api->getTasks(30);
             $amountOfTasks = count($tasks);
 
             echo 'Ответ от API успешно получен' . PHP_EOL;
@@ -58,6 +58,26 @@ class App
             echo "Файл успешно загружен! GUID: {$guid2}" . PHP_EOL;
 
             $uploadedGuids = [$guid1, $guid2];
+
+            echo 'Отправляем файлы на сервер' . PHP_EOL;
+            $attachResult = $this->api->addTaskAttach($taskId, $uploadedGuids);
+            echo 'Файлы успешно прикреплены к заявке!' . PHP_EOL;
+            echo 'Результат работы API: ' . json_encode($attachResult) . PHP_EOL;
+
+            echo "Добавляем текстового комментария к заявке {$taskId}" . PHP_EOL;
+            $fio = 'Карпенко Михаил Сергеевич';
+            $dateTime = date('Y-m-d H:i:s');
+            $commentText = "Тестовый комментарий от кандидата: {$fio}, {$dateTime}";
+
+            $commentResult = $this->api->addTaskComment($taskId, $commentText);
+
+            if ($commentResult === true) {
+                echo 'Комментарий успешно добавлен в заявку!' . PHP_EOL;
+            }
+
+            echo 'Выполняем выход из аккаунта' . PHP_EOL;
+            $logoutMessage = $this->api->logout();
+            echo "Ответ сервера: {$logoutMessage}" . PHP_EOL;
 
             return 0;
         } catch (Exception $c) {
