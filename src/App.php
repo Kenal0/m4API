@@ -43,7 +43,21 @@ class App
             echo 'req: ' . ($detail['req'] ?? 'N/A') . PHP_EOL;
             echo 'caption: ' . ($detail['caption'] ?? 'N/A') . PHP_EOL;
             echo 'status: ' . $detail['status'] . ' ' . $detail['statusName'] . PHP_EOL;
-            echo '--- Структура данных (Отладка) ---' . PHP_EOL;
+
+            echo 'Загрузка файла(-ов) на сервер STORAGE...' . PHP_EOL;
+
+            $file1 = __DIR__ . '/../image1.png';
+            $file2 = __DIR__ . '/../image1.png';
+
+            echo 'Загрузка первого файла (image1.png)...' . PHP_EOL;
+            $guid1 = $this->api->uploadFile($file1);
+            echo "Файл успешно загружен! GUID: {$guid1}" . PHP_EOL;
+
+            echo 'Загрузка второго файла (image2.png)...' . PHP_EOL;
+            $guid2 = $this->api->uploadFile($file2);
+            echo "Файл успешно загружен! GUID: {$guid2}" . PHP_EOL;
+
+            $uploadedGuids = [$guid1, $guid2];
 
             return 0;
         } catch (Exception $c) {

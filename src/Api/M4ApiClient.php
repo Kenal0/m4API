@@ -10,6 +10,7 @@ class M4ApiClient
     private string $authUrl;
     private ?string $token = null;
     private ?string $sdApiUrl = null;
+    private ?string $storageApiUrl = null;
 
     public function __construct(string $authUrl)
     {
@@ -44,6 +45,9 @@ class M4ApiClient
                 if (($service['code'] ?? '') === 'SD') {
                     $this->sdApiUrl = $service['apiUrl'];
                     return $this->sdApiUrl;
+                }
+                if (($service['code'] ?? '') === 'STORAGE') {
+                    $this->storageApiUrl = $service['apiUrl'];
                 }
             }
         }
@@ -101,5 +105,48 @@ class M4ApiClient
         return $this->sendRpcRequest('M4GetTaskDetails', [
             'taskId' => $taskId,
         ]);
+    }
+
+    public function uploadFile(string $filePath)
+    {
+        if (empty($this->storageApiUrl)) {
+            throw new \Exception('URL сервиса STORAGE не установлен. Проверьте ответ авторизации.');
+        }
+
+        if (empty($this->token)) {
+            throw new \Exception('Токен авторизации отсутствует.');
+        }
+
+        if (!file_exists($filePath)) {
+            throw new \Exception("Файл не найден по пути: {$filePath}");
+        }
+
+        $url = $this->storageApiUrl . '/putfile.php';
+
+        $response = $this->httpClient->request('POST', $url, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->token,
+            ],
+            'multipart' => [
+                [
+                    'name' => 'file',
+                    'contents' => fopen($filePath, 'r'),
+                    'filename' => basename($filePath),
+                ]
+            ]
+        ]);
+
+        if ($response->getStatusCode() !== 200) {
+            throw new \Exception('Ошибка при загрузке файла. Код ответа: ' . $response->getStatusCode());
+        }
+
+        $responseData = json_decode($response->getBody(), true);
+        $guid = $responseData['result']['guid'] ?? null;
+
+        if (empty($guid)) {
+            throw new \Exception('Сервер не вернул guid файл. Ответ: ' . json_encode($responseData));
+        }
+
+        return $guid;
     }
 }
