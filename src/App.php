@@ -24,21 +24,28 @@ class App
             echo 'Успешная авторизация! URL сервиса SD: ' . $sdUrl . PHP_EOL;
             echo 'Запрос списка заявок за последние 3 дня.' . PHP_EOL;
 
-            $tickets = $this->api->getTicket(3);
-            $amountOfTickets = count($tickets);
+            $tasks = $this->api->getTasks(150);
+            $amountOfTasks = count($tasks);
 
             echo 'Ответ от API успешно получен' . PHP_EOL;
-            echo 'Количество найденных заявок: ' . $amountOfTickets . PHP_EOL;
+            print_r($tasks);
+            echo 'Количество найденных заявок: ' . $amountOfTasks . PHP_EOL;
 
-            if ($amountOfTickets < 2) {
+            if ($amountOfTasks < 2) {
                 echo 'Недостаточно заявок для выполнения тестового сценария';
                 return 0;
-        }
+            }
+            $secondTask = $tasks[1];
+            $taskId =  $secondTask['taskId'];
+            $detail = $this->api->getTaskDetails($taskId);
 
-        echo '--- Структура данных (Отладка) ---' . PHP_EOL;
+            echo 'taskId: ' . ($detail['taskId'] ?? 'N/A') . PHP_EOL;
+            echo 'req: ' . ($detail['req'] ?? 'N/A') . PHP_EOL;
+            echo 'caption: ' . ($detail['caption'] ?? 'N/A') . PHP_EOL;
+            echo 'status: ' . $detail['status'] . ' ' . $detail['statusName'] . PHP_EOL;
+            echo '--- Структура данных (Отладка) ---' . PHP_EOL;
 
-        print_r($tickets);
-        return 0;
+            return 0;
         } catch (Exception $c) {
             echo 'Ошибка исполнения: ' . $c->getMessage() . PHP_EOL;
             return 1;
