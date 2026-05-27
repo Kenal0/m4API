@@ -73,7 +73,7 @@ class M4ApiClient implements TaskSystemInterface
     public function getSdServiceUrl(): string
     {
         if (empty($this->sdApiUrl)) {
-            throw new Exception('Сервис SD не найден в списке доступных сервисов API.');
+            throw new \Exception('Сервис SD не найден в списке доступных сервисов API.');
         }
 
         return $this->sdApiUrl;
@@ -81,10 +81,6 @@ class M4ApiClient implements TaskSystemInterface
 
     public function getTasks(int $days = 3): array
     {
-        if ($days <= 0) {
-            throw new Exception("Количество дней должно быть больше нуля. Передано: {$days}");
-        }
-
         $dateLimit = (new \DateTime())->modify("-{$days} days")->format('d.m.Y H:i:s');
 
         return $this->sendRpcRequest('M4GetTasks', [
@@ -94,6 +90,8 @@ class M4ApiClient implements TaskSystemInterface
 
     public function getTaskDetails(int $taskId): array
     {
+        $this->validateTaskId($taskId);
+
         $result = $this->sendRpcRequest('M4GetTaskDetails', [
             'taskId' => $taskId,
         ]);
@@ -164,10 +162,6 @@ class M4ApiClient implements TaskSystemInterface
     {
         $this->validateTaskId($taskId);
 
-        if (empty(trim($comment))) {
-            throw new Exception('Текст комментария не может быть пустым');
-        }
-
         $this->sendRpcCommand('M4AddTaskComment', [
             'taskId' => $taskId,
             'comment' => $comment,
@@ -203,9 +197,6 @@ class M4ApiClient implements TaskSystemInterface
         return $result['message'] ?? 'Успешный выход.';
     }
 
-    /**
-     * @throws Exception
-     */
     private function executeRpc(string $method, array $params = []): mixed
     {
         $this->validateToken();

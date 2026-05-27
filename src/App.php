@@ -4,22 +4,34 @@ namespace Kenal\M4api;
 
 use Exception;
 use Kenal\M4api\Api\TaskSystemInterface;
+use Kenal\M4api\Validator\PayloadValidatorInterface;
 
 class App
 {
     private TaskSystemInterface $api;
+    private PayloadValidatorInterface $validator;
 
-    public function __construct(TaskSystemInterface $api)
+    public function __construct(TaskSystemInterface $api, PayloadValidatorInterface $validator)
     {
         $this->api = $api;
+        $this->validator = $validator;
     }
 
     public function run(array $config, array $payload): int
     {
         try {
+            $this->validator->validatePayload($payload);
+        } catch (Exception $e) {
+            echo $e->getMessage();
+            return 1;
+        }
+
+        $isLoggedIn = false;
+        try {
             echo "Попытка авторизации..." . PHP_EOL;
 
             $this->api->login($config['login'], $config['password']);
+            $isLoggedIn = true;
             $sdUrl = $this->api->getSdServiceUrl();
 
             echo "Успешная авторизация! URL сервиса SD: {$sdUrl}" . PHP_EOL ;
@@ -36,9 +48,6 @@ class App
 
             if ($amountOfTasks < 2) {
                 echo 'Недостаточно заявок для выполнения тестового сценария' . PHP_EOL;
-                echo 'Выполняем выход из аккаунта' . PHP_EOL;
-                $logoutMessage = $this->api->logout();
-                echo "Ответ сервера: {$logoutMessage}" . PHP_EOL;
                 return 0;
             }
 
@@ -72,26 +81,27 @@ class App
             $logoutMessage = $this->api->logout();
             echo "Ответ сервера: {$logoutMessage}" . PHP_EOL;
 
+            $isLoggedIn = false;
+
             return 0;
         } catch (Exception $e) {
             echo 'Ошибка исполнения: ' . $e->getMessage() . PHP_EOL;
             return 1;
+        } finally {
+            if ($isLoggedIn) {
+                try {
+                    echo 'Выполняем выход из аккаунта' . PHP_EOL;
+                    $logoutMessage = $this->api->logout();
+                    echo "Ответ сервера: {$logoutMessage}" . PHP_EOL;
+                } catch (Exception $logoutException) {
+                    echo 'Не удалось выполнить выход из аккаунта: ' . $logoutException->getMessage() . PHP_EOL;
+                }
+            }
         }
     }
 
     private function uploadFiles(array $files): array
     {
-        $missing = [];
-        foreach ($files as $file) {
-            if (!file_exists($file)) {
-                $missing[] = basename($file);
-            }
-        }
-
-        if (!empty($missing)) {
-            throw new Exception('Не найдены файлы: ' . implode(', ', $missing) . '. отмена загрузки.');
-        }
-
         $uploadedGuids = [];
         $i = 1;
         foreach ($files as $file) {
