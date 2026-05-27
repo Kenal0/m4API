@@ -36,11 +36,14 @@ class App
 
             if ($amountOfTasks < 2) {
                 echo 'Недостаточно заявок для выполнения тестового сценария' . PHP_EOL;
+                echo 'Выполняем выход из аккаунта' . PHP_EOL;
+                $logoutMessage = $this->api->logout();
+                echo "Ответ сервера: {$logoutMessage}" . PHP_EOL;
                 return 0;
             }
 
             $secondTask = $tasks[1];
-            $taskId =  $secondTask['taskId'];
+            $taskId = $secondTask['taskId'];
             $detail = $this->api->getTaskDetails($taskId);
 
             echo 'taskId: ' . ($detail['taskId'] ?? 'N/A') . PHP_EOL;
@@ -51,9 +54,10 @@ class App
 
             echo 'Загрузка файла(-ов) на сервер STORAGE...' . PHP_EOL;
             $uploadedGuids = $this->uploadFiles($payload['files']);
+            echo 'Файлы отправлены на сервер' . PHP_EOL;
 
-            echo 'Отправляем файлы на сервер' . PHP_EOL;
-            $attachResult = $this->api->addTaskAttach($taskId, $uploadedGuids);
+            echo "Прикрепляем файлы к заявке {$taskId}" . PHP_EOL;
+            $this->api->addTaskAttach($taskId, $uploadedGuids);
             echo 'Файлы успешно прикреплены к заявке!' . PHP_EOL;
 
             echo "Добавляем текстовый комментарий к заявке {$taskId}" . PHP_EOL;
@@ -61,25 +65,33 @@ class App
             $dateTime = date('Y-m-d H:i:s');
             $commentText = "Тестовый комментарий от кандидата: {$fio}, {$dateTime}";
 
-            $commentResult = $this->api->addTaskComment($taskId, $commentText);
-
-            if ($commentResult === true) {
-                echo 'Комментарий успешно добавлен в заявку!' . PHP_EOL;
-            }
+            $this->api->addTaskComment($taskId, $commentText);
+            echo 'Комментарий успешно добавлен в заявку!' . PHP_EOL;
 
             echo 'Выполняем выход из аккаунта' . PHP_EOL;
             $logoutMessage = $this->api->logout();
             echo "Ответ сервера: {$logoutMessage}" . PHP_EOL;
 
             return 0;
-        } catch (Exception $c) {
-            echo 'Ошибка исполнения: ' . $c->getMessage() . PHP_EOL;
+        } catch (Exception $e) {
+            echo 'Ошибка исполнения: ' . $e->getMessage() . PHP_EOL;
             return 1;
         }
     }
 
     private function uploadFiles(array $files): array
     {
+        $missing = [];
+        foreach ($files as $file) {
+            if (!file_exists($file)) {
+                $missing[] = basename($file);
+            }
+        }
+
+        if (!empty($missing)) {
+            throw new Exception('Не найдены файлы: ' . implode(', ', $missing) . '. отмена загрузки.');
+        }
+
         $uploadedGuids = [];
         $i = 1;
         foreach ($files as $file) {

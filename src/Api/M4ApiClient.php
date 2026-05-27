@@ -3,7 +3,9 @@
 namespace Kenal\M4api\Api;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
+use Exception;
+use GuzzleHttp\Psr7\Utils;
+use Psr\Http\Message\ResponseInterface;
 
 class M4ApiClient implements TaskSystemInterface
 {
@@ -32,22 +34,20 @@ class M4ApiClient implements TaskSystemInterface
             ]
         ]);
 
-        if ($response->getStatusCode() !== 200) {
-            throw new \Exception('Ошибка авторизации. Код ответа: ' . $response->getStatusCode());
+        $this->validateResponse($response, 'Ошибка авторизации.');
+
+        $responseData = $this->decodeJsonResponse($response);
+
+        if (empty($responseData['token'])) {
+            throw new Exception('Токен не найден в API.');
         }
 
-        $data = json_decode((string) $response->getBody(), true);
+        $this->token = $responseData['token'];
 
-        if (empty($data['token'])) {
-            throw new \Exception('Токен не найден в API.');
-        }
-
-        $this->token = $data['token'];
-
-        if (is_array($data['services'] ?? null)) {
-            $this->extractServiceUrls($data['services']);
+        if (is_array($responseData['services'] ?? null)) {
+            $this->extractServiceUrls($responseData['services']);
         } else {
-            throw new \Exception('Список сервисов пуст или отсутствует в ответе авторизации.');
+            throw new Exception('Массив сервисов в ответе API не найден.');
         }
     }
 
@@ -66,30 +66,151 @@ class M4ApiClient implements TaskSystemInterface
             }
         }
 
-        if (empty($this->sdApiUrl)) {
-            throw new \Exception('Сервис SD не найден в списке доступных сервисов API.');
-        }
+        $this->getSdServiceUrl();
+        $this->validateStorageApiUrl();
     }
 
     public function getSdServiceUrl(): string
     {
         if (empty($this->sdApiUrl)) {
-            throw new \Exception('URL сервиса SD еще не получен. Сначала необходимо залогиниться.');
+            throw new Exception('Сервис SD не найден в списке доступных сервисов API.');
         }
 
         return $this->sdApiUrl;
     }
 
-    /**
-     * @throws \Exception
-     */
-    private function sendRpcRequest(string $method, array $params = []): array|bool
+    public function getTasks(int $days = 3): array
     {
-        if (empty($this->token)) {
-            throw new \Exception('Токен авторизации отсутствует');
+        if ($days <= 0) {
+            throw new Exception("Количество дней должно быть больше нуля. Передано: {$days}");
         }
 
-        $response = $this->httpClient->request('POST', $this->getSdServiceUrl(), [
+        $dateLimit = (new \DateTime())->modify("-{$days} days")->format('d.m.Y H:i:s');
+
+        return $this->sendRpcRequest('M4GetTasks', [
+            'lastUpdate' => $dateLimit,
+        ]);
+    }
+
+    public function getTaskDetails(int $taskId): array
+    {
+        $result = $this->sendRpcRequest('M4GetTaskDetails', [
+            'taskId' => $taskId,
+        ]);
+
+        return $result;
+    }
+
+    public function uploadFile(string $filePath): string
+    {
+        $this->validateStorageApiUrl();
+        $this->validateToken();
+
+        $url = $this->storageApiUrl . '/putfile.php';
+
+        $response = $this->httpClient->request('POST', $url, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->token,
+            ],
+            'multipart' => [
+                [
+                    'name' => 'file',
+                    'contents' => Utils::tryFopen($filePath, 'r'),
+                    'filename' => basename($filePath),
+                ]
+            ]
+        ]);
+
+        $this->validateResponse($response, 'Ошибка сети при загрузке файла.');
+
+        $responseData = $this->decodeJsonResponse($response);
+        $guid = $responseData['result']['guid'] ?? null;
+
+        if (empty($guid)) {
+            throw new Exception('Сервер не вернул guid файл. Ответ: ' . json_encode($responseData, JSON_UNESCAPED_UNICODE));
+        }
+
+        return $guid;
+    }
+
+    public function addTaskAttach(int $taskId, array $guids): bool
+    {
+        $this->validateTaskId($taskId);
+
+        if (empty($guids)) {
+            throw new Exception("Массив guids файлов пуст. Нечего прикреплять к заявке {$taskId}");
+        }
+
+        $filesParam = [];
+        foreach ($guids as $guid) {
+            if (empty($guid) || !is_string($guid)) {
+                throw new Exception('Обнаружен некорректный guid файла в массиве вложений: ' . gettype($guid));
+            }
+            $filesParam[] = [
+                'guid' => $guid,
+                'typeAttachId' => 5,
+            ];
+        }
+
+        $this->sendRpcCommand('M4AddTaskAttach', [
+            'taskId' => $taskId,
+            'files' => $filesParam,
+        ]);
+
+        return true;
+    }
+
+    public function addTaskComment(int $taskId, string $comment, bool $isPublic = true): bool
+    {
+        $this->validateTaskId($taskId);
+
+        if (empty(trim($comment))) {
+            throw new Exception('Текст комментария не может быть пустым');
+        }
+
+        $this->sendRpcCommand('M4AddTaskComment', [
+            'taskId' => $taskId,
+            'comment' => $comment,
+            'isPublic' => $isPublic,
+        ]);
+
+        return true;
+    }
+
+    public function logout(): string
+    {
+        $this->validateToken();
+
+        $response = $this->httpClient->request('POST', $this->authUrl, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $this->token,
+            ],
+            'json' => [
+                'jsonrpc' => '2.0',
+                'method' => 'logout',
+                'id' => 1,
+            ],
+        ]);
+
+        $this->validateResponse($response, 'Ошибка сети при выходе.');
+
+        $responseData = $this->decodeJsonResponse($response);
+        $result = $responseData['result'] ?? null;
+
+        if (!isset($result['code']) || $result['code'] !== 200) {
+            throw new Exception('Не удалось выйти: ' . json_encode($result, JSON_UNESCAPED_UNICODE));
+        }
+        return $result['message'] ?? 'Успешный выход.';
+    }
+
+    /**
+     * @throws Exception
+     */
+    private function executeRpc(string $method, array $params = []): mixed
+    {
+        $this->validateToken();
+
+        $response = $this->httpClient->request('POST', $this->sdApiUrl, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->token,
             ],
@@ -101,186 +222,78 @@ class M4ApiClient implements TaskSystemInterface
             ],
         ]);
 
-        if ($response->getStatusCode() !== 200) {
-            throw new \Exception("Ошибка API при вызове {$method}. Код ответа " . $response->getStatusCode());
-        }
+        $this->validateResponse($response, "Ошибка API при вызове {$method}.");
 
-        $responseData = json_decode((string) $response->getBody(), true);
+        $responseData = $this->decodeJsonResponse($response);
 
         if (isset($responseData['error'])) {
-            throw new \Exception("API вернул ошибку в методе {$method} :" . json_encode($responseData['error'], JSON_UNESCAPED_UNICODE));
+            throw new Exception("API вернул ошибку в методе {$method} :" . json_encode($responseData['error'], JSON_UNESCAPED_UNICODE));
         }
 
-        return $responseData['result'] ?? [];
+        return $responseData['result'] ?? null;
     }
 
-    private function sendRpcCommand (string $method, array $params = [])
+    private function sendRpcRequest(string $method, array $params = []): array
     {
-        $result = $this->sendRpcRequest($method, $params);
+        $result = $this->executeRpc($method, $params);
+
+        if (!is_array($result)) {
+            throw new Exception("Метод {$method} должен был вернуть массив, но вернул что-то другое.");
+        }
+
+        return $result;
+    }
+
+    private function sendRpcCommand(string $method, array $params = []): void
+    {
+        $result = $this->executeRpc($method, $params);
 
         if ($result !== true) {
-            throw new \Exception("Метод {$method} вернул неожиданный ответ: " . json_encode($result), JSON_UNESCAPED_UNICODE);
+            throw new Exception("Метод {$method} не выполнился успешно: " . json_encode($result, JSON_UNESCAPED_UNICODE));
         }
     }
 
-    public function getTasks(int $days = 3): array
+    private function validateResponse(ResponseInterface $response, string $errorContext): void
     {
-        if ($days <= 0) {
-            throw new \Exception("Количество дней должно быть больше нуля. Передано: {$days}");
+        $statusCode = $response->getStatusCode();
+
+        if ($statusCode !== 200) {
+            throw new Exception("{$errorContext} Код ответа: {$statusCode}");
         }
-
-        $dateLimit = (new \DateTime())->modify("-{$days} days")->format('d.m.Y H:i:s');
-
-        $result = $this->sendRpcRequest('M4GetTasks', [
-            'lastUpdate' => $dateLimit,
-        ]);
-
-        if (!is_array($result)) {
-            throw new \Exception('Метод M4GetTasks вернул некорректный тип данных вместо массива.');
-        }
-
-        return $result;
     }
 
-    public function getTaskDetails(int $taskId): array
-    {
-        if ($taskId <= 0) {
-            throw new \Exception("Следующий ID заявки является некорректным для получения деталей: {$taskId}");
-        }
-
-        $result = $this->sendRpcRequest('M4GetTaskDetails', [
-            'taskId' => $taskId,
-        ]);
-
-        if (!is_array($result)) {
-            throw new \Exception("Метод M4GetTaskDetails для заявки {$taskId} вернул некорректный ответ.");
-        }
-
-        return $result;
-    }
-
-    public function uploadFile(string $filePath): string
+    private function validateStorageApiUrl(): void
     {
         if (empty($this->storageApiUrl)) {
-            throw new \Exception('URL сервиса STORAGE не установлен. Проверьте ответ авторизации.');
+            throw new Exception('URL сервиса STORAGE не установлен. Проверьте ответ авторизации.');
         }
+    }
 
+    private function validateToken(): void
+    {
         if (empty($this->token)) {
-            throw new \Exception('Токен авторизации отсутствует.');
+            throw new Exception('Токен авторизации отсутствует.');
         }
-
-        if (!file_exists($filePath)) {
-            throw new \Exception("Файл не найден по пути: {$filePath}");
-        }
-
-        $url = $this->storageApiUrl . '/putfile.php';
-
-        $response = $this->httpClient->request('POST', $url, [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->token,
-            ],
-            'multipart' => [
-                [
-                    'name' => 'file',
-                    'contents' => fopen($filePath, 'r'),
-                    'filename' => basename($filePath),
-                ]
-            ]
-        ]);
-
-        if ($response->getStatusCode() !== 200) {
-            throw new \Exception('Ошибка при загрузке файла. Код ответа: ' . $response->getStatusCode());
-        }
-
-        $responseData = json_decode((string) $response->getBody(), true);
-        $guid = $responseData['result']['guid'] ?? null;
-
-        if (empty($guid)) {
-            throw new \Exception('Сервер не вернул guid файл. Ответ: ' . json_encode($responseData), JSON_UNESCAPED_UNICODE);
-        }
-
-        return $guid;
     }
 
-    public function addTaskAttach(int $taskId, array $guids): bool
+    private function validateTaskId(int $taskId): void
     {
         if ($taskId <= 0) {
-            throw new \Exception("Некорректный ID заявки для прикрепления файлов: {$taskId}");
+            throw new Exception("Некорректный ID заявки: {$taskId}");
         }
-        if (empty($guids)) {
-            throw new \Exception("Массив guids файлов пуст. Нечего прикреплять к заявке {$taskId}");
-        }
-
-        $filesParam = [];
-        foreach ($guids as $guid) {
-            if (empty($guid) || !is_string($guid)) {
-                throw new \Exception('Обнаружен некорректный guid файла в массиве вложений: ' . gettype($guid));
-            }
-            $filesParam[] = [
-                'guid' => $guid,
-                'typeAttachId' => 5,
-            ];
-        }
-
-        $result = $this->sendRpcRequest('M4AddTaskAttach', [
-            'taskId' => $taskId,
-            'files' => $filesParam,
-        ]);
-
-        if ($result !== true) {
-            throw new \Exception('Сервер вернул неожиданный ответ при прикреплении файлов.' . json_encode($result), JSON_UNESCAPED_UNICODE);
-        }
-
-        return true;
     }
 
-    public function addTaskComment(int $taskId, string $comment, bool $isPublic = true): bool
+    private function decodeJsonResponse(ResponseInterface $response): array
     {
-        if ($taskId <= 0) {
-            throw new \Exception("Некорректный ID заявки для добавления комментария: {$taskId}");
+        $data = json_decode((string) $response->getBody(), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Ошибка парсинга JSON: ' . json_last_error_msg());
+        }
+        if (!is_array($data)) {
+            throw new Exception("Ответ API не является массивом JSON. Ответ: {$data}");
         }
 
-        if (empty(trim($comment))) {
-            throw new \Exception('Текст комментария не может быть пустым');
-        }
-
-        $result = $this->sendRpcRequest('M4AddTaskComment', [
-            'taskId' => $taskId,
-            'comment' => $comment,
-            'isPublic' => $isPublic,
-        ]);
-
-        if ($result !== true) {
-            throw new \Exception('Сервер вернул неожиданный ответ при добавлении комментария :' . json_encode($result, JSON_UNESCAPED_UNICODE));
-        }
-
-        return true;
-    }
-
-    public function logout(): string
-    {
-        $response = $this->httpClient->request('POST', $this->authUrl, [
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->token,
-            ],
-            'json' => [
-                'jsonrpc' => '2.0',
-                'method' => 'logout',
-                'id' => 1,
-            ],
-        ]);
-
-        if ($response->getStatusCode() !== 200) {
-            throw new \Exception('Ошибка сети при выходе ' . $response->getStatusCode());
-        }
-
-        $responseData = json_decode((string)$response->getBody(), true);
-        $result = $responseData['result'] ?? [];
-
-        if (!isset($result['code']) || $result['code'] !== 200) {
-            throw new \Exception('Не удалось выйти: ' . json_encode($result, JSON_UNESCAPED_UNICODE));
-        }
-        return $result['message'] ?? 'Успешный выход.';
+        return $data;
     }
 }
