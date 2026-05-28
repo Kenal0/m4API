@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Kenal\M4api\Api;
 
 use GuzzleHttp\Client;
@@ -15,12 +17,10 @@ class M4ApiClient implements TaskSystemInterface
     private ?string $sdApiUrl = null;
     private ?string $storageApiUrl = null;
 
-    public function __construct(string $authUrl)
+    public function __construct(Client $httpClient, string $authUrl)
     {
         $this->authUrl = $authUrl;
-        $this->httpClient = new Client([
-            'http_errors' => false,
-        ]);
+        $this->httpClient = $httpClient;
     }
 
     public function login(string $username, string $password): void
