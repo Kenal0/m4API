@@ -15,7 +15,6 @@ class ApiClient implements TaskSystemInterface
 {
     private Client $httpClient;
     private AuthManager $authManager;
-    private string $authUrl;
     private ?string $token = null;
     private ?string $sdApiUrl = null;
     private ?string $storageApiUrl = null;
@@ -24,10 +23,9 @@ class ApiClient implements TaskSystemInterface
     private ?TaskService $taskService = null;
 
 
-    public function __construct(Client $httpClient, string $authUrl, AuthManager $authManager)
+    public function __construct(Client $httpClient, AuthManager $authManager)
     {
         $this->httpClient = $httpClient;
-        $this->authUrl = $authUrl;
         $this->authManager = $authManager;
     }
 
