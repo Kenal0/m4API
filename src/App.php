@@ -79,12 +79,6 @@ class App
             $this->api->addTaskComment($taskId, $commentText);
             echo 'Комментарий успешно добавлен в заявку!' . PHP_EOL;
 
-            echo 'Выполняем выход из аккаунта' . PHP_EOL;
-            $logoutMessage = $this->api->logout();
-            echo "Ответ сервера: {$logoutMessage}" . PHP_EOL;
-
-            $isLoggedIn = false;
-
             return 0;
         } catch (Exception $e) {
             echo 'Ошибка исполнения: ' . $e->getMessage() . PHP_EOL;

@@ -16,7 +16,7 @@ class AppRunValidator implements PayloadValidatorInterface
             $errors[] = 'Поле "fio" обязателено для заполния и должен быть строкой';
         }
 
-        if((int) ($payload['amountOfDays'] ?? 0) <= 0) {
+        if ((int) ($payload['amountOfDays'] ?? 0) <= 0) {
             $errors[] = 'Параметр "amountOfDays" должен быть больше нуля.';
         }
 
