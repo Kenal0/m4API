@@ -45,7 +45,6 @@ class App
             $amountOfTasks = count($tasks);
 
             echo 'Ответ от API успешно получен' . PHP_EOL;
-            print_r($tasks);
             echo 'Количество найденных заявок: ' . $amountOfTasks . PHP_EOL;
 
             if ($amountOfTasks < 2) {

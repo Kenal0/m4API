@@ -62,7 +62,7 @@ class AuthManager
 
     public function getSdApiUrl(): string
     {
-        if ($this->token === null) {
+        if ($this->sdApiUrl === null) {
             throw new \Exception('SdApiUrl отсутствует.');
         }
         return $this->sdApiUrl;
@@ -70,7 +70,7 @@ class AuthManager
 
     public function getStorageApiUrl(): string
     {
-        if ($this->token === null) {
+        if ($this->storageApiUrl === null) {
             throw new \Exception('StorageApiUrl отсутствует.');
         }
         return $this->storageApiUrl;

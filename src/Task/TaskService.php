@@ -9,6 +9,7 @@ use Kenal\M4api\Transport\JsonRpcClient;
 
 class TaskService
 {
+    private const TYPE_ATTACH_DEFAULT = 5;
     private JsonRpcClient $jsonRpcClient;
 
     public function __construct(JsonRpcClient $jsonRpcClient)
@@ -42,7 +43,7 @@ class TaskService
             }
             $filesParam[] = [
                 'guid' => $guid,
-                'typeAttachId' => 5,
+                'typeAttachId' => self::TYPE_ATTACH_DEFAULT,
             ];
         }
 

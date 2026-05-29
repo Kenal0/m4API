@@ -11,6 +11,7 @@ use Kenal\M4api\Traits\JsonResponseTrait;
 class JsonRpcClient
 {
     use JsonResponseTrait;
+    private const RPC_REQUEST_ID = 1;
     private Client $httpClient;
     private string $sdApiUrl;
     private string $token;
@@ -53,7 +54,7 @@ class JsonRpcClient
                 'jsonrpc' => '2.0',
                 'method' => $method,
                 'params' => $params,
-                'id' => 1,
+                'id' => self::RPC_REQUEST_ID,
             ],
         ]);
 
