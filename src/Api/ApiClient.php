@@ -37,7 +37,7 @@ class ApiClient implements TaskSystemInterface
         $this->storageApiUrl = $this->authManager->getStorageApiUrl();
     }
 
-    public function getSdServiceUrl(): string
+    public function getSdApiUrl(): string
     {
         if (empty($this->sdApiUrl)) {
             throw new \Exception('Сервис SD не найден в списке доступных сервисов API.');
@@ -53,14 +53,11 @@ class ApiClient implements TaskSystemInterface
 
     public function getTaskDetails(int $taskId): array
     {
-        $this->validateTaskId($taskId);
-
         return $this->taskService()->getTaskDetails($taskId);
     }
 
     public function uploadFile(string $filePath): string
     {
-        $this->validateStorageApiUrl();
         $this->validateToken();
         $guid = $this->storageClient()->uploadFile($filePath);
         return $guid;
@@ -68,15 +65,11 @@ class ApiClient implements TaskSystemInterface
 
     public function addTaskAttach(int $taskId, array $guids): bool
     {
-        $this->validateTaskId($taskId);
-
         return $this->taskService()->addTaskAttach($taskId, $guids);
     }
 
     public function addTaskComment(int $taskId, string $comment, bool $isPublic = true): bool
     {
-        $this->validateTaskId($taskId);
-
         return $this->taskService()->addTaskComment($taskId, $comment, $isPublic);
     }
 
@@ -90,24 +83,10 @@ class ApiClient implements TaskSystemInterface
         return $result;
     }
 
-    private function validateStorageApiUrl(): void
-    {
-        if (empty($this->storageApiUrl)) {
-            throw new Exception('URL сервиса STORAGE не установлен. Проверьте ответ авторизации.');
-        }
-    }
-
     private function validateToken(): void
     {
         if (empty($this->token)) {
             throw new Exception('Токен авторизации отсутствует.');
-        }
-    }
-
-    private function validateTaskId(int $taskId): void
-    {
-        if ($taskId <= 0) {
-            throw new Exception("Некорректный ID заявки: {$taskId}");
         }
     }
 

@@ -34,7 +34,7 @@ class App
 
             $this->api->login($config['login'], $config['password']);
             $isLoggedIn = true;
-            $sdUrl = $this->api->getSdServiceUrl();
+            $sdUrl = $this->api->getSdApiUrl();
 
             echo "Успешная авторизация! URL сервиса SD: {$sdUrl}" . PHP_EOL ;
 
@@ -56,6 +56,7 @@ class App
             $taskId = $secondTask['taskId'];
             $detail = $this->api->getTaskDetails($taskId);
 
+            echo 'Информация о второй заявке в списке:' . PHP_EOL;
             echo 'taskId: ' . ($detail['taskId'] ?? 'N/A') . PHP_EOL;
             echo 'req: ' . ($detail['req'] ?? 'N/A') . PHP_EOL;
             echo 'caption: ' . ($detail['caption'] ?? 'N/A') . PHP_EOL;

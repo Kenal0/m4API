@@ -28,6 +28,8 @@ class TaskService
 
     public function getTaskDetails(int $taskId): array
     {
+        $this->validateTaskId($taskId);
+
         return $this->jsonRpcClient->sendRpcRequest('M4GetTaskDetails', [
             'taskId' => $taskId,
         ]);
@@ -36,6 +38,8 @@ class TaskService
 
     public function addTaskAttach(int $taskId, array $guids): bool
     {
+        $this->validateTaskId($taskId);
+
         $filesParam = [];
         foreach ($guids as $guid) {
             if (empty($guid) || !is_string($guid)) {
@@ -57,6 +61,8 @@ class TaskService
 
     public function addTaskComment(int $taskId, string $comment, bool $isPublic = true): bool
     {
+        $this->validateTaskId($taskId);
+
         $this->jsonRpcClient->sendRpcCommand('M4AddTaskComment', [
             'taskId' => $taskId,
             'comment' => $comment,
@@ -64,5 +70,12 @@ class TaskService
         ]);
 
         return true;
+    }
+
+    private function validateTaskId(int $taskId): void
+    {
+        if ($taskId <= 0) {
+            throw new Exception("Некорректный ID заявки: {$taskId}");
+        }
     }
 }

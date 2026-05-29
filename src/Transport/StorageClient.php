@@ -26,6 +26,8 @@ class StorageClient
 
     public function uploadFile(string $filePath): string
     {
+        $this->validateStorageApiUrl();
+
         $url = $this->storageApiUrl . '/putfile.php';
 
         $response = $this->httpClient->request('POST', $url, [
@@ -51,5 +53,12 @@ class StorageClient
         }
 
         return $guid;
+    }
+
+    private function validateStorageApiUrl(): void
+    {
+        if (empty($this->storageApiUrl)) {
+            throw new Exception('URL сервиса STORAGE не установлен. Проверьте ответ авторизации.');
+        }
     }
 }

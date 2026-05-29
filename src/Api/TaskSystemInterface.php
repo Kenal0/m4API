@@ -6,7 +6,7 @@ interface TaskSystemInterface
 {
     public function login(string $username, string $password): void;
 
-    public function getSdServiceUrl(): string;
+    public function getSdApiUrl(): string;
 
     public function getTasks(int $days = 3): array;
 
