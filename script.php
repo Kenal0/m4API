@@ -15,6 +15,8 @@ $payload = require __DIR__ . '/payload.php';
 
 $guzzleClient = new Client([
     'http_errors' => false,
+    'timeout' => 30,
+    'connect_timeout' => 5,
 ]);
 
 $validator = new AppRunValidator();
