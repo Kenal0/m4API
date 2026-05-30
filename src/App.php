@@ -19,7 +19,7 @@ class App
         $this->validator = $validator;
     }
 
-    public function run(array $config, array $payload): int
+    public function run(array $payload): int
     {
         try {
             $this->validator->validatePayload($payload);
@@ -32,7 +32,7 @@ class App
         try {
             echo "Попытка авторизации..." . PHP_EOL;
 
-            $this->api->login($config['login'], $config['password']);
+            $this->api->login();
             $isLoggedIn = true;
             $sdUrl = $this->api->getSdApiUrl();
 

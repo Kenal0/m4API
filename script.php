@@ -20,10 +20,15 @@ $guzzleClient = new Client([
 ]);
 
 $validator = new AppRunValidator();
-$authManager = new AuthManager($guzzleClient, $config['base_url']);
+$authManager = new AuthManager(
+    $guzzleClient,
+    $config['base_url'],
+    $config['username'],
+    $config['password']
+);
 $apiClient = new ApiClient($guzzleClient, $authManager);
 
 $app = new App($apiClient, $validator);
-$exitCode = $app->run($config, $payload);
+$exitCode = $app->run($payload);
 
 exit($exitCode);

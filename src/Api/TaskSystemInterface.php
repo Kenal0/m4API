@@ -4,7 +4,7 @@ namespace Kenal\M4api\Api;
 
 interface TaskSystemInterface
 {
-    public function login(string $username, string $password): void;
+    public function login(): void;
 
     public function getSdApiUrl(): string;
 

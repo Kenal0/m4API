@@ -22,16 +22,15 @@ class ApiClient implements TaskSystemInterface
     private ?StorageClient $storageClient = null;
     private ?TaskService $taskService = null;
 
-
     public function __construct(Client $httpClient, AuthManager $authManager)
     {
         $this->httpClient = $httpClient;
         $this->authManager = $authManager;
     }
 
-    public function login(string $username, string $password): void
+    public function login(): void
     {
-        $this->authManager->login($username, $password);
+        $this->authManager->login();
         $this->token = $this->authManager->getToken();
         $this->sdApiUrl = $this->authManager->getSdApiUrl();
         $this->storageApiUrl = $this->authManager->getStorageApiUrl();

@@ -14,24 +14,28 @@ class AuthManager
 
     private Client $httpClient;
     private string $authUrl;
+    private ?string $username;
+    private ?string $password;
     private ?string $token = null;
     private ?string $sdApiUrl = null;
     private ?string $storageApiUrl = null;
 
-    public function __construct(Client $httpClient, string $authUrl)
+    public function __construct(Client $httpClient, string $authUrl, string $username, string $password)
     {
         $this->httpClient = $httpClient;
         $this->authUrl = $authUrl;
+        $this->username = $username;
+        $this->password = $password;
     }
 
-    public function login(string $username, string $password): void
+    public function login(): void
     {
         $url = $this->authUrl . '/login_check';
 
         $response = $this->httpClient->request('POST', $url, [
             'json' => [
-                'username' => $username,
-                'password' => $password,
+                'username' => $this->username,
+                'password' => $this->password,
             ]
         ]);
 
